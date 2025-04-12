@@ -52,6 +52,7 @@ public class NamesrvStartup {
     private static ControllerConfig controllerConfig = null;
 
     public static void main(String[] args) {
+        System.setProperty("rocketmq.home.dir", System.getProperty("user.dir"));
         main0(args);
         controllerManagerMain();
     }

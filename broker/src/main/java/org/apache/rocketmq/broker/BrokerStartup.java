@@ -47,6 +47,7 @@ public class BrokerStartup {
     public static final SystemConfigFileHelper CONFIG_FILE_HELPER = new SystemConfigFileHelper();
 
     public static void main(String[] args) {
+        System.setProperty("rocketmq.home.dir", System.getProperty("user.dir"));
         start(createBrokerController(args));
     }
 
@@ -83,6 +84,7 @@ public class BrokerStartup {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
 
         final BrokerConfig brokerConfig = new BrokerConfig();
+        brokerConfig.setAutoCreateTopicEnable(true);
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
         final NettyClientConfig nettyClientConfig = new NettyClientConfig();
         final MessageStoreConfig messageStoreConfig = new MessageStoreConfig();

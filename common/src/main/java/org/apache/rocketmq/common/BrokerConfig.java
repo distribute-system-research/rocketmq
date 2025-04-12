@@ -676,7 +676,7 @@ public class BrokerConfig extends BrokerIdentity {
     }
 
     public boolean isAutoCreateTopicEnable() {
-        return autoCreateTopicEnable;
+        return true;
     }
 
     public void setAutoCreateTopicEnable(boolean autoCreateTopic) {
