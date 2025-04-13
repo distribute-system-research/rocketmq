@@ -19,9 +19,11 @@ package org.apache.rocketmq.broker;
 import java.io.BufferedInputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Option;
@@ -47,7 +49,9 @@ public class BrokerStartup {
     public static final SystemConfigFileHelper CONFIG_FILE_HELPER = new SystemConfigFileHelper();
 
     public static void main(String[] args) {
-        System.setProperty("rocketmq.home.dir", System.getProperty("user.dir"));
+        String home = System.getProperty("user.home");
+        Path rocketmqPath = Paths.get(home, "rocketmq");
+        System.setProperty("rocketmq.home.dir", System.getProperty("user.home"));
         start(createBrokerController(args));
     }
 
@@ -56,8 +60,8 @@ public class BrokerStartup {
             controller.start();
 
             String tip = String.format("The broker[%s, %s] boot success. serializeType=%s",
-                controller.getBrokerConfig().getBrokerName(), controller.getBrokerAddr(),
-                RemotingCommand.getSerializeTypeConfigInThisServer());
+                    controller.getBrokerConfig().getBrokerName(), controller.getBrokerAddr(),
+                    RemotingCommand.getSerializeTypeConfigInThisServer());
 
             if (null != controller.getBrokerConfig().getNamesrvAddr()) {
                 tip += " and name server is " + controller.getBrokerConfig().getNamesrvAddr();
@@ -84,7 +88,6 @@ public class BrokerStartup {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
 
         final BrokerConfig brokerConfig = new BrokerConfig();
-        brokerConfig.setAutoCreateTopicEnable(true);
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
         final NettyClientConfig nettyClientConfig = new NettyClientConfig();
         final MessageStoreConfig messageStoreConfig = new MessageStoreConfig();
@@ -93,20 +96,15 @@ public class BrokerStartup {
 
         Options options = ServerUtil.buildCommandlineOptions(new Options());
         CommandLine commandLine = ServerUtil.parseCmdLine(
-            "mqbroker", args, buildCommandlineOptions(options), new DefaultParser());
+                "mqbroker", args, buildCommandlineOptions(options), new DefaultParser());
         if (null == commandLine) {
             System.exit(-1);
         }
 
-        Properties properties = null;
-        if (commandLine.hasOption('c')) {
-            String file = commandLine.getOptionValue('c');
-            if (file != null) {
-                CONFIG_FILE_HELPER.setFile(file);
-                BrokerPathConfigHelper.setBrokerConfigPath(file);
-                properties = CONFIG_FILE_HELPER.loadConfig();
-            }
-        }
+        Properties properties;
+        CONFIG_FILE_HELPER.setFile(BrokerPathConfigHelper.brokerConfigPath);
+        BrokerPathConfigHelper.setBrokerConfigPath(BrokerPathConfigHelper.brokerConfigPath);
+        properties = CONFIG_FILE_HELPER.loadConfig();
 
         if (properties != null) {
             properties2SystemEnv(properties);
@@ -119,7 +117,7 @@ public class BrokerStartup {
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), brokerConfig);
         if (null == brokerConfig.getRocketmqHome()) {
             System.out.printf("Please set the %s variable in your environment " +
-                "to match the location of the RocketMQ installation", MixAll.ROCKETMQ_HOME_ENV);
+                    "to match the location of the RocketMQ installation", MixAll.ROCKETMQ_HOME_ENV);
             System.exit(-2);
         }
 
@@ -207,7 +205,7 @@ public class BrokerStartup {
         MixAll.printObjectProperties(log, messageStoreConfig);
 
         final BrokerController controller = new BrokerController(
-            brokerConfig, nettyServerConfig, nettyClientConfig, messageStoreConfig);
+                brokerConfig, nettyServerConfig, nettyClientConfig, messageStoreConfig);
 
         // Remember all configs to prevent discard
         controller.getConfiguration().registerConfig(properties);

@@ -1604,7 +1604,6 @@ public class BrokerController {
         if (this.brokerStatsManager != null) {
             this.brokerStatsManager.start();
         }
-
         if (this.brokerFastFailure != null) {
             this.brokerFastFailure.start();
         }
