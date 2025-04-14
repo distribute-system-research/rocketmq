@@ -49,8 +49,6 @@ public class BrokerStartup {
     public static final SystemConfigFileHelper CONFIG_FILE_HELPER = new SystemConfigFileHelper();
 
     public static void main(String[] args) {
-        String home = System.getProperty("user.home");
-        Path rocketmqPath = Paths.get(home, "rocketmq");
         System.setProperty("rocketmq.home.dir", System.getProperty("user.home"));
         start(createBrokerController(args));
     }
