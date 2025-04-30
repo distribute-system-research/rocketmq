@@ -71,6 +71,7 @@ public class TimerLog {
             byteBuffer.putInt(mappedFile.getFileSize() - mappedFile.getWrotePosition());
             byteBuffer.putLong(0);
             byteBuffer.putInt(BLANK_MAGIC_CODE);
+            // write to file
             if (mappedFile.appendMessage(byteBuffer.array())) {
                 //need to set the wrote position
                 mappedFile.setWrotePosition(mappedFile.getFileSize());

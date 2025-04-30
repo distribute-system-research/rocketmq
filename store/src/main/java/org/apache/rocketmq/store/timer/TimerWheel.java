@@ -29,6 +29,9 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
+/**
+ * actual timewheel for dispatch
+ */
 public class TimerWheel {
 
     private static final Logger log = LoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -139,6 +142,7 @@ public class TimerWheel {
         localBuffer.get().putLong(firstPos);
         localBuffer.get().putLong(lastPos);
     }
+    // timewheel use ThreadLocal?
     public void putSlot(long timeMs, long firstPos, long lastPos, int num, int magic) {
         localBuffer.get().position(getSlotIndex(timeMs) * Slot.SIZE);
         localBuffer.get().putLong(timeMs / precisionMs);

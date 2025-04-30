@@ -80,6 +80,7 @@ public class TimerMessageStore {
     public static final int INITIAL = 0, RUNNING = 1, HAULT = 2, SHUTDOWN = 3;
     private volatile int state = INITIAL;
 
+    // read
     public static final String TIMER_TOPIC = TopicValidator.SYSTEM_TOPIC_PREFIX + "wheel_timer";
     public static final String TIMER_OUT_MS = MessageConst.PROPERTY_TIMER_OUT_MS;
     public static final String TIMER_ENQUEUE_MS = MessageConst.PROPERTY_TIMER_ENQUEUE_MS;
@@ -672,6 +673,7 @@ public class TimerMessageStore {
                     long offsetPy = cqUnit.getPos();
                     int sizePy = cqUnit.getSize();
                     cqUnit.getTagsCode(); //tags code
+                    // get data from commitlog?
                     MessageExt msgExt = getMessageByCommitOffset(offsetPy, sizePy);
                     if (null == msgExt) {
                         perfCounterTicks.getCounter("enqueue_get_miss");
@@ -681,6 +683,7 @@ public class TimerMessageStore {
                         long delayedTime = Long.parseLong(msgExt.getProperty(TIMER_OUT_MS));
                         // use CQ offset, not offset in Message
                         msgExt.setQueueOffset(offset + i);
+                        // The real timerRequest with realData.
                         TimerRequest timerRequest = new TimerRequest(offsetPy, sizePy, delayedTime, System.currentTimeMillis(), MAGIC_DEFAULT, msgExt);
                         // System.out.printf("build enqueue request, %s%n", timerRequest);
                         while (!enqueuePutQueue.offer(timerRequest, 3, TimeUnit.SECONDS)) {
@@ -740,6 +743,7 @@ public class TimerMessageStore {
         if (isDelete) {
             magic = magic | MAGIC_DELETE;
         }
+        // change to realTopic
         String realTopic = messageExt.getProperty(MessageConst.PROPERTY_REAL_TOPIC);
         Slot slot = timerWheel.getSlot(delayedTime);
         ByteBuffer tmpBuffer = timerLogBuffer;
@@ -965,7 +969,7 @@ public class TimerMessageStore {
                 return -1;
             }
             CountDownLatch deleteLatch = new CountDownLatch(deleteMsgStack.size());
-            //read the delete msg: the msg used to mark another msg is deleted
+            //read to delete msg: the msg used to mark another msg is deleted
             for (List<TimerRequest> deleteList : splitIntoLists(deleteMsgStack)) {
                 for (TimerRequest tr : deleteList) {
                     tr.setLatch(deleteLatch);
@@ -1405,7 +1409,7 @@ public class TimerMessageStore {
         @Override
         public void run() {
             TimerMessageStore.LOGGER.info(this.getServiceName() + " service start");
-            while (!this.isStopped() || enqueuePutQueue.size() != 0) {
+            while (!this.isStopped() || !enqueuePutQueue.isEmpty()) {
                 try {
                     fetchAndPutTimerRequest();
                 } catch (Throwable e) {
@@ -1565,7 +1569,7 @@ public class TimerMessageStore {
                                     if (null == uniqueKey) {
                                         LOGGER.warn("No uniqueKey for msg:{}", msgExt);
                                     }
-                                    if (null != uniqueKey && tr.getDeleteList() != null && tr.getDeleteList().size() > 0 && tr.getDeleteList().contains(uniqueKey)) {
+                                    if (null != uniqueKey && tr.getDeleteList() != null && !tr.getDeleteList().isEmpty() && tr.getDeleteList().contains(uniqueKey)) {
                                         doRes = true;
                                         tr.idempotentRelease();
                                         perfCounterTicks.getCounter("dequeue_delete").flow(1);
