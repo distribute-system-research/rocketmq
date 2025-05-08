@@ -51,6 +51,7 @@ public class TimerWheel {
     };
     private final int wheelLength;
 
+    // 文件名是 timerwheel，在 store 目录下。
     public TimerWheel(String fileName, int slotsTotal, int precisionMs) throws IOException {
         this.slotsTotal = slotsTotal;
         this.precisionMs = precisionMs;

@@ -210,6 +210,7 @@ public class HookUtils {
             MessageAccessor.putProperty(msg, MessageConst.PROPERTY_TIMER_OUT_MS, deliverMs + "");
             MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_TOPIC, msg.getTopic());
             MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_QUEUE_ID, String.valueOf(msg.getQueueId()));
+            //
             msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));
             msg.setTopic(TimerMessageStore.TIMER_TOPIC);
             msg.setQueueId(0);

@@ -22,7 +22,7 @@ public class DelayedProducer {
 
         for (int i = 0; i < 10; i++) {
 
-            Message message = new Message(topic, ("Hello scheduled message " + i).getBytes(StandardCharsets.UTF_8));
+            Message message = new Message(topic, ("这是我的延迟消息：" + i).getBytes(StandardCharsets.UTF_8));
             // 延迟 10s 后投递
             message.setDelayTimeSec(10);
             // 发送消息

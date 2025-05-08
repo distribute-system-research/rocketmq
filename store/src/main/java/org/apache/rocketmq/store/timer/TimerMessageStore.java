@@ -171,6 +171,7 @@ public class TimerMessageStore {
         this.precisionMs = storeConfig.getTimerPrecisionMs();
 
         // TimerWheel contains the fixed number of slots regardless of precision.
+        // 一共这么多 slot？每秒一个，一共七天？
         this.slotsTotal = TIMER_WHEEL_TTL_DAY * DAY_SECS;
         this.timerWheel = new TimerWheel(
             getTimerWheelPath(storeConfig.getStorePathRootDir()), this.slotsTotal, precisionMs);
@@ -934,10 +935,12 @@ public class TimerMessageStore {
                 }
                 long prevPos = -1;
                 try {
+                    // 获取延迟任务的基础信息，包括偏移量、入队时间、延迟到达时间。
                     int position = (int) (currOffsetPy % timerLogFileSize);
                     timeSbr.getByteBuffer().position(position);
                     timeSbr.getByteBuffer().getInt(); //size
                     prevPos = timeSbr.getByteBuffer().getLong();
+                    // magic 看起来不像是想象中的魔数概念，看这意思像是有业务含义的。
                     int magic = timeSbr.getByteBuffer().getInt();
                     long enqueueTime = timeSbr.getByteBuffer().getLong();
                     long delayedTime = timeSbr.getByteBuffer().getInt() + enqueueTime;
@@ -953,6 +956,7 @@ public class TimerMessageStore {
                 } catch (Exception e) {
                     LOGGER.error("Error in dequeue_read_timerlog", e);
                 } finally {
+                    // 遍历的方向要 debug 研究一下
                     currOffsetPy = prevPos;
                     perfCounterTicks.endTick("dequeue_read_timerlog");
                 }
@@ -1069,8 +1073,7 @@ public class TimerMessageStore {
             }
         }
         MessageAccessor.putProperty(messageExt, TIMER_DEQUEUE_MS, System.currentTimeMillis() + "");
-        MessageExtBrokerInner message = convertMessage(messageExt, needRoll);
-        return message;
+        return convertMessage(messageExt, needRoll);
     }
 
     //0 succ; 1 fail, need retry; 2 fail, do not retry;
@@ -1081,6 +1084,7 @@ public class TimerMessageStore {
             return PUT_NO_RETRY;
         }
 
+        // write back to broker commitlog
         PutMessageResult putMessageResult = null;
         if (escapeBridgeHook != null) {
             putMessageResult = escapeBridgeHook.apply(message);
@@ -1498,6 +1502,7 @@ public class TimerMessageStore {
                                     MessageAccessor.putProperty(msgExt, TIMER_ENQUEUE_MS, String.valueOf(Long.MAX_VALUE));
                                 }
                                 addMetric(msgExt, -1);
+                                // 转换成能放入到 commitlog 的格式
                                 MessageExtBrokerInner msg = convert(msgExt, tr.getEnqueueTime(), needRoll(tr.getMagic()));
                                 doRes = PUT_NEED_RETRY != doPut(msg, needRoll(tr.getMagic()));
                                 while (!doRes && !isStopped()) {
