@@ -131,6 +131,7 @@ public class TimerWheel {
             localBuffer.get().getLong(), localBuffer.get().getLong(), localBuffer.get().getInt(), localBuffer.get().getInt());
     }
 
+    // 为什么要 %(slotsTotal * 2) 呢？
     public int getSlotIndex(long timeMs) {
         return (int) (timeMs / precisionMs % (slotsTotal * 2));
     }

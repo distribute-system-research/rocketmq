@@ -127,6 +127,7 @@ public class TimerMessageStore {
     private TimerDequeueGetMessageService[] dequeueGetMessageServices;
     private TimerFlushService timerFlushService;
 
+    // 记录当前读到的 ms 数，可以用来故障恢复
     protected volatile long currReadTimeMs;
     protected volatile long currWriteTimeMs;
     protected volatile long preReadTimeMs;
@@ -729,7 +730,9 @@ public class TimerMessageStore {
         LOGGER.debug("Do enqueue [{}] [{}]", new Timestamp(delayedTime), messageExt);
         //copy the value first, avoid concurrent problem
         long tmpWriteTimeMs = currWriteTimeMs;
+        // 是否需要翻滚，翻滚的意思是延迟的时间超过七天了，需要重复投递
         boolean needRoll = delayedTime - tmpWriteTimeMs >= (long) timerRollWindowSlots * precisionMs;
+        // magic 这里用一个字段来标识不同含义。
         int magic = MAGIC_DEFAULT;
         if (needRoll) {
             magic = magic | MAGIC_ROLL;
@@ -746,6 +749,7 @@ public class TimerMessageStore {
         }
         // change to realTopic
         String realTopic = messageExt.getProperty(MessageConst.PROPERTY_REAL_TOPIC);
+        // 这里不会有并发问题吗？
         Slot slot = timerWheel.getSlot(delayedTime);
         ByteBuffer tmpBuffer = timerLogBuffer;
         tmpBuffer.clear();
@@ -762,6 +766,7 @@ public class TimerMessageStore {
         if (-1 != ret) {
             // If it's a delete message, then slot's total num -1
             // TODO: check if the delete msg is in the same slot with "the msg to be deleted".
+            // timerwheel 指向的是 timerlog 的物理地址
             timerWheel.putSlot(delayedTime, slot.firstPos == -1 ? ret : slot.firstPos, ret,
                 isDelete ? slot.num - 1 : slot.num + 1, slot.magic);
             addMetric(messageExt, isDelete ? -1 : 1);
@@ -925,11 +930,13 @@ public class TimerMessageStore {
             while (currOffsetPy != -1) {
                 perfCounterTicks.startTick("dequeue_read_timerlog");
                 if (null == timeSbr || timeSbr.getStartOffset() > currOffsetPy) {
+                    // 这里获取了什么东西，从 currOffsetPy 位置处的所有数据吗？
                     timeSbr = timerLog.getWholeBuffer(currOffsetPy);
                     if (null != timeSbr) {
                         sbrs.add(timeSbr);
                     }
                 }
+                // 没有获取到文件
                 if (null == timeSbr) {
                     break;
                 }
@@ -941,6 +948,7 @@ public class TimerMessageStore {
                     timeSbr.getByteBuffer().getInt(); //size
                     prevPos = timeSbr.getByteBuffer().getLong();
                     // magic 看起来不像是想象中的魔数概念，看这意思像是有业务含义的。
+                    // magic 用一个字段表述了 delete roll 等概念
                     int magic = timeSbr.getByteBuffer().getInt();
                     long enqueueTime = timeSbr.getByteBuffer().getLong();
                     long delayedTime = timeSbr.getByteBuffer().getInt() + enqueueTime;
@@ -961,7 +969,7 @@ public class TimerMessageStore {
                     perfCounterTicks.endTick("dequeue_read_timerlog");
                 }
             }
-            if (deleteMsgStack.size() == 0 && normalMsgStack.size() == 0) {
+            if (deleteMsgStack.isEmpty() && normalMsgStack.isEmpty()) {
                 LOGGER.warn("dequeue time:{} but read nothing from timerLog", currReadTimeMs);
             }
             for (SelectMappedBufferResult sbr : sbrs) {
@@ -1424,6 +1432,7 @@ public class TimerMessageStore {
         }
     }
 
+    // 当前进程只有一个 TimerDequeueService 线程。
     public class TimerDequeueGetService extends ServiceThread {
 
         @Override
@@ -1442,6 +1451,7 @@ public class TimerMessageStore {
                         continue;
                     }
                     if (-1 == TimerMessageStore.this.dequeue()) {
+                        // wait 100ms，相当于 tick 是 100ms 吗？
                         waitForRunning(100L * precisionMs / 1000);
                     }
                 } catch (Throwable e) {
